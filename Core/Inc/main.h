@@ -62,6 +62,8 @@ void Error_Handler(void);
 #define USER_Btn_EXTI_IRQn EXTI15_10_IRQn
 #define Row4_Pin GPIO_PIN_3
 #define Row4_GPIO_Port GPIOF
+#define Buzzer_Pin GPIO_PIN_5
+#define Buzzer_GPIO_Port GPIOF
 #define Guzik_Pin GPIO_PIN_10
 #define Guzik_GPIO_Port GPIOF
 #define Guzik_EXTI_IRQn EXTI15_10_IRQn

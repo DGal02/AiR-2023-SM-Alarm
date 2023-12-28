@@ -18,10 +18,8 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "eth.h"
 #include "tim.h"
 #include "usart.h"
-#include "usb_otg.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -61,17 +59,52 @@ void SystemClock_Config(void);
 char moveDetectedMessage[] = "Move detected!\n";
 char badPinMessage[] = "Bad pin!\n";
 char goodPinMessage[] = "Good pin!\n";
+char activatedBuzzerMessage[] = "Buzzer has been activated!\n";
 uint8_t keyboard;
 uint8_t codeSet[4];
 uint8_t codeSetIndex = 0;
 uint8_t codeUser[4];
 uint8_t codeUserIndex = 0;
 uint8_t phase = 0;
+uint8_t firstTrigger = 0;
+
+void activateBuzzer(void);
+void deactivateBuzzer(void);
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	if (GPIO_Pin == moveSensor_Pin) {
-		HAL_UART_Transmit(&huart3, (uint8_t *) moveDetectedMessage, strlen(moveDetectedMessage), 1000);
+		HAL_UART_Transmit(&huart3, (uint8_t*) moveDetectedMessage,
+				strlen(moveDetectedMessage), 1000);
+		if (phase == 2) {
+			activateBuzzer();
+		}
 	}
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+	if (htim == &htim2) {
+		if (firstTrigger == 0) {
+			firstTrigger++;
+			return;
+		}
+		HAL_UART_Transmit(&huart3, (uint8_t*) activatedBuzzerMessage, strlen(activatedBuzzerMessage),
+				1000);
+		if (HAL_GPIO_ReadPin(moveSensor_GPIO_Port, moveSensor_Pin) == 1) {
+			activateBuzzer();
+		}
+
+		firstTrigger = 0;
+		phase = 2;
+		HAL_TIM_Base_Stop_IT(&htim2);
+	}
+}
+
+void activateBuzzer(void) {
+	HAL_GPIO_WritePin(Buzzer_GPIO_Port, Buzzer_Pin, 0);
+}
+
+void deactivateBuzzer(void) {
+	HAL_GPIO_WritePin(Buzzer_GPIO_Port, Buzzer_Pin, 1);
 }
 
 char readKeypad(void) {
@@ -185,18 +218,23 @@ char readKeypad(void) {
 }
 
 void handleBadPin(void) {
-	HAL_UART_Transmit(&huart3, (uint8_t *) badPinMessage, strlen(badPinMessage), 1000);
+	HAL_UART_Transmit(&huart3, (uint8_t*) badPinMessage, strlen(badPinMessage),
+			1000);
 	memset(&codeUser[0], '\0', 4);
 	codeUserIndex = 0;
 }
 
 void handleGoodPin(void) {
-	HAL_UART_Transmit(&huart3, (uint8_t *) goodPinMessage, strlen(goodPinMessage), 1000);
+	deactivateBuzzer();
+	HAL_TIM_Base_Stop_IT(&htim2);
+	HAL_UART_Transmit(&huart3, (uint8_t*) goodPinMessage,
+			strlen(goodPinMessage), 1000);
 	memset(&codeSet[0], '\0', 4);
 	memset(&codeUser[0], '\0', 4);
 	codeSetIndex = 0;
 	codeUserIndex = 0;
 	phase = 0;
+	firstTrigger = 0;
 }
 /* USER CODE END 0 */
 
@@ -228,54 +266,52 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_ETH_Init();
   MX_USART3_UART_Init();
-  MX_USB_OTG_FS_PCD_Init();
   MX_TIM2_Init();
-  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 	while (1) {
-// HAL_GPIO_ReadPin(moveSensor_GPIO_Port, moveSensor_Pin) == 1
+
 		if (phase == 0) {
 			keyboard = readKeypad();
 			if (keyboard != 0x01) {
 				codeSet[codeSetIndex] = keyboard;
 				codeSetIndex++;
 				if (codeSetIndex >= 4) {
+					HAL_TIM_Base_Start_IT(&htim2);
 					phase = 1;
 				}
 
 				HAL_UART_Transmit(&huart3, &keyboard, 1, 1000);
-				HAL_UART_Transmit(&huart3, (uint8_t *) "\n", 1, 1000);
+				HAL_UART_Transmit(&huart3, (uint8_t*) "\n", 1, 1000);
 			}
 
 			HAL_Delay(200);
 		}
 
-		if (phase == 1) {
+		if (phase == 1 || phase == 2) {
 			keyboard = readKeypad();
 			if (keyboard != 0x01) {
 				codeUser[codeUserIndex] = keyboard;
 				codeUserIndex++;
+				HAL_UART_Transmit(&huart3, &keyboard, 1, 1000);
+				HAL_UART_Transmit(&huart3, (uint8_t*) "\n", 1, 1000);
 				if (codeUserIndex >= 4) {
-					if (codeUser[0] == codeSet[0] && codeUser[1] == codeSet[1] && codeUser[2] == codeSet[2] && codeUser[3] == codeSet[3]){
+					if (codeUser[0] == codeSet[0] && codeUser[1] == codeSet[1]
+							&& codeUser[2] == codeSet[2]
+							&& codeUser[3] == codeSet[3]) {
 						handleGoodPin();
 					} else {
 						handleBadPin();
 					}
 				}
-
-				HAL_UART_Transmit(&huart3, &keyboard, 1, 1000);
-				HAL_UART_Transmit(&huart3, (uint8_t *) "\n", 1, 1000);
 			}
 
 			HAL_Delay(200);
 		}
-
 
     /* USER CODE END WHILE */
 
