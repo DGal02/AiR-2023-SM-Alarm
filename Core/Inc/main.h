@@ -113,6 +113,9 @@ void Error_Handler(void);
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
 #define TCK_GPIO_Port GPIOA
+#define moveSensor_Pin GPIO_PIN_4
+#define moveSensor_GPIO_Port GPIOD
+#define moveSensor_EXTI_IRQn EXTI4_IRQn
 #define Col3_Pin GPIO_PIN_5
 #define Col3_GPIO_Port GPIOD
 #define Col2_Pin GPIO_PIN_6
