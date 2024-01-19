@@ -70,6 +70,10 @@ uint8_t firstTrigger = 0;
 
 void activateBuzzer(void);
 void deactivateBuzzer(void);
+void phase0LED(void);
+void phase1LED(void);
+void phase2LED(void);
+void activatedBuzzerLED(void);
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	if (GPIO_Pin == moveSensor_Pin) {
@@ -77,6 +81,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 				strlen(moveDetectedMessage), 1000);
 		if (phase == 2) {
 			activateBuzzer();
+			activatedBuzzerLED();
 		}
 	}
 }
@@ -95,6 +100,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 		firstTrigger = 0;
 		phase = 2;
+		phase2LED();
 		HAL_TIM_Base_Stop_IT(&htim2);
 	}
 }
@@ -235,6 +241,31 @@ void handleGoodPin(void) {
 	codeUserIndex = 0;
 	phase = 0;
 	firstTrigger = 0;
+	phase0LED();
+}
+
+void phase0LED() {
+	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 500);
+	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 0);
+}
+
+void phase1LED() {
+	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 700);
+	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 500);
+	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 0);
+}
+
+void phase2LED() {
+	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 200);
+	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
+	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 0);
+}
+
+void activatedBuzzerLED() {
+	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1000);
+	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
+	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 0);
 }
 /* USER CODE END 0 */
 
@@ -268,7 +299,12 @@ int main(void)
   MX_GPIO_Init();
   MX_USART3_UART_Init();
   MX_TIM2_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
+  phase0LED();
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -283,6 +319,7 @@ int main(void)
 				if (codeSetIndex >= 4) {
 					HAL_TIM_Base_Start_IT(&htim2);
 					phase = 1;
+					phase1LED();
 				}
 
 				HAL_UART_Transmit(&huart3, &keyboard, 1, 1000);
